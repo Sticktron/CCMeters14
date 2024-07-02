@@ -105,6 +105,8 @@ typedef struct {
     DebugLog(@"viewDidLoad()");
     DebugLog(@"self.view = %@", self.view);
     
+    // SUPER-HACKY!! need this for the layer effect composition to work
+    [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
 	for (Meter *meter in self.meters) {
         
 		// create icon...
@@ -315,7 +317,6 @@ typedef struct {
     
     // Disk Meter: free space on /User
     if (self.diskMeter.enabled) {
-        // long long bytesFree = [self diskFreeInBytesForPath:@"/"];
         // NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
         // long long bytesFree = [self diskFreeInBytesForPath:[paths lastObject]];
         long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
