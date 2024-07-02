@@ -107,6 +107,7 @@ typedef struct {
     
     // SUPER-HACKY!! need this for the layer effect composition to work
     [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
+    
 	for (Meter *meter in self.meters) {
         
 		// create icon...
@@ -117,14 +118,15 @@ typedef struct {
 		iconImage = [iconImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 		[icon setImage:iconImage forState:UIControlStateNormal];
         icon.tintColor = UIColor.whiteColor;
-        // icon.alpha = 0.7;
-        //icon.layer.compositingFilter = @"vibrantDark";
+        // icon.layer.compositingFilter = @"plusL";
+        icon.layer.compositingFilter = @"linearDodgeBlendMode";
+        icon.alpha = 0.5;
+                
         // test border
         // icon.layer.borderWidth = 1;
         // icon.layer.borderColor = UIColor.greenColor.CGColor;
         [self.view addSubview:icon];
 		meter.icon = icon;
-        
         
 		// create label...
         UILabel *label = [[UILabel alloc] init];
@@ -317,9 +319,9 @@ typedef struct {
     
     // Disk Meter: free space on /User
     if (self.diskMeter.enabled) {
-        // NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-        // long long bytesFree = [self diskFreeInBytesForPath:[paths lastObject]];
-        long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
+        unsigned long long bytesFree = [self diskFreeInBytesForPath:@"/"];
+        DebugLog(@"***** bytesFree = %llu", bytesFree);
+        //unsigned long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
         double gigsFree = (double)bytesFree / (1024*1024*1024);
         [self.diskMeter.label setText:[NSString stringWithFormat:@"%.1f GB", gigsFree]];
     }
