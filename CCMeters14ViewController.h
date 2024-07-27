@@ -6,7 +6,7 @@
 //
 
 #import <UIKit/UIViewController.h>
-#import <ControlCenterUIKit/CCUIContentModuleContentViewController.h>
+#import "Headers/CCUIContentModuleContentViewController-Protocol.h"
 
 @interface CCMeters14ViewController : UIViewController <CCUIContentModuleContentViewController>
 

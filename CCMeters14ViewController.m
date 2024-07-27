@@ -11,10 +11,6 @@
 #import "CCMeters14ViewController.h"
 #import "Meter.h"
 
-#import <ControlCenterUIKit/CCUIControlCenterButton.h>
-
-#import "Headers/MTMaterialView.h"
-
 #import <sys/socket.h>
 #import <sys/sysctl.h>
 #import <sys/types.h>
@@ -28,6 +24,8 @@
 #import <arpa/inet.h>
 #import <SpringBoard/SBWiFiManager.h>
 #import <objc/runtime.h>
+
+@class CCUIControlCenterButton;
 
 #define	RTM_IFINFO2			0x12 //from route.h
 

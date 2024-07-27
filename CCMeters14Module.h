@@ -5,7 +5,7 @@
 //  Copyright © 2024 Sticktron. All rights reserved.
 //
 
-#import <ControlCenterUIKit/CCUIContentModule.h>
+#import "Headers/CCUIContentModule-Protocol.h"
 #import "CCMeters14ViewController.h"
 
 @interface CCMeters14Module : NSObject <CCUIContentModule>
