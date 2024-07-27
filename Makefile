@@ -1,5 +1,5 @@
 ARCHS = arm64e
-TARGET := iphone:clang:13.7:latest
+TARGET := iphone:clang:13.7:14.0
 INSTALL_TARGET_PROCESSES = SpringBoard
 
 include $(THEOS)/makefiles/common.mk
@@ -10,6 +10,6 @@ CCMeters14_FILES = CCMeters14Module.m CCMeters14ViewController.m Meter.m
 CCMeters14_CFLAGS = -fobjc-arc
 CCMeters14_FRAMEWORKS = UIKit
 CCMeters14_PRIVATE_FRAMEWORKS = ControlCenterUIKit
-CCMeters14_INSTALL_PATH = /Library/ControlCenter/Bundles/
+CCMeters14_INSTALL_PATH = /Library/ControlCenter/Bundles
 
 include $(THEOS_MAKE_PATH)/bundle.mk
