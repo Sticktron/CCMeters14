@@ -112,10 +112,6 @@ typedef struct {
     // SUPER-HACKY!! need this for the layer effect composition to work
     [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
 	
-    // set expanded module width to match small size
-    _preferredExpandedContentWidth = self.view.bounds.size.width;
-    _preferredExpandedContentHeight = self.view.bounds.size.height * 3;
-        
 	[self setupCollapsedView];
 	[self setupExpandedView];
 }
@@ -125,8 +121,12 @@ typedef struct {
     DebugLog(@"viewWillAppear(animated:%d)", animated);
     DebugLog(@"expanded = %d)", self.expanded);
     
+    // set expanded module width to match small size
+    _preferredExpandedContentWidth = self.view.bounds.size.width;
+    _preferredExpandedContentHeight = self.view.bounds.size.height * 3;
+    
     [self layoutCollapsedView];
-		
+	
     [self startUpdating]; // start updating meters !!!
 }
 
@@ -259,9 +259,8 @@ typedef struct {
 
 - (void)didTransitionToExpandedContentMode:(BOOL)expanded {
     DebugLog(@"didTransitionToExpandedContentMode(%d)", expanded);
-    
     if (expanded) {
-        [self layoutExpandedView];
+	    [self layoutExpandedView];
         [self updateExpandedContent];
         self.expandedView.hidden = NO;
     }
