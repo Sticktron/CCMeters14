@@ -23,17 +23,21 @@
 #import <ifaddrs.h>
 #import <arpa/inet.h>
 #import <SpringBoard/SBWiFiManager.h>
+#import <SpringBoard/SpringBoard.h>
 #import <objc/runtime.h>
-
-@class CCUIControlCenterButton;
+#import <FrontBoardServices/FBSSystemService.h>
+#import <spawn.h>
 
 #define	RTM_IFINFO2			0x12 //from route.h
 
 #define UPDATE_INTERVAL		2.0f
 
-#define ICON_HEIGHT			24.0f
+#define ICON_SIZE			24.0f
 #define LABEL_HEIGHT		16.0f
 #define SIDE_MARGIN	    	8.0f
+#define TOGGLE_SIZE		    40.0f
+
+#define ALERT_SHUT_DOWN		0
 
 typedef struct {
     uint64_t totalSystemTime;
@@ -60,7 +64,9 @@ typedef struct {
 @property (nonatomic, strong) Meter *uploadMeter;
 @property (nonatomic, strong) Meter *downloadMeter;
 @property (nonatomic, strong) NSMutableArray *meters;
+
 @property (nonatomic, strong) NSTimer *meterUpdateTimer;
+
 @property (nonatomic, assign) CPUSample lastCPUSample;
 @property (nonatomic, assign) NetSample lastNetSample;
 
@@ -69,7 +75,12 @@ typedef struct {
 @property (nonatomic, strong) UILabel *wifiIPLabel;
 @property (nonatomic, strong) UILabel *tagLabel;
 
-- (void)updateLayout;
+@property (nonatomic, strong) UIView *togglesView;
+@property (nonatomic, strong) UIButton *respringButton;
+@property (nonatomic, strong) UIButton *restartButton;
+@property (nonatomic, strong) UIButton *restartUserspaceButton;
+
+- (void)layoutCollapsedView;
 @end
 
 //------------------------------------------------------------------------------
@@ -78,8 +89,6 @@ typedef struct {
 
 - (instancetype)init {
     if ((self = [super init])) {
-        DebugLog(@"init()");
-        
         // create meters
         _cpuMeter = [[Meter alloc] initWithName:@"cpu" title:@"CPU"];
         _ramMeter = [[Meter alloc] initWithName:@"ram" title:@"RAM"];
@@ -97,15 +106,31 @@ typedef struct {
     return self;
 }
 
-// create UI
 - (void)viewDidLoad {
     [super viewDidLoad];
-    DebugLog(@"viewDidLoad()");
-    DebugLog(@"self.view = %@", self.view);
-    
+	
     // SUPER-HACKY!! need this for the layer effect composition to work
     [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
+	
+    // set expanded module width to match small size
+    _preferredExpandedContentWidth = self.view.bounds.size.width;
+    _preferredExpandedContentHeight = self.view.bounds.size.height * 3;
+        
+	[self setupCollapsedView];
+	[self setupExpandedView];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    DebugLog(@"viewWillAppear(animated:%d)", animated);
+    DebugLog(@"expanded = %d)", self.expanded);
     
+    [self layoutCollapsedView];
+		
+    [self startUpdating]; // start updating meters !!!
+}
+
+- (void)setupCollapsedView {
 	for (Meter *meter in self.meters) {
         
 		// create icon...
@@ -138,11 +163,12 @@ typedef struct {
         // label.layer.borderColor = UIColor.greenColor.CGColor;
 		[self.view addSubview:label];
 		meter.label = label;
-	}
-    
-    // Expanded View
+	}	
+}
+
+- (void)setupExpandedView {
     _expandedView = [[UIView alloc] init];
-    //_expandedView.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.1];
+	//_expandedView.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.2];
     [self.view addSubview:_expandedView];
     
     // SSID
@@ -159,28 +185,75 @@ typedef struct {
     _wifiIPLabel.textColor = UIColor.whiteColor;
     [self.expandedView addSubview:_wifiIPLabel];
     
-    // misc
+    // tag
     _tagLabel = [[UILabel alloc] init];
     _tagLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
     _tagLabel.textAlignment = NSTextAlignmentCenter;
     _tagLabel.textColor = UIColor.whiteColor;
     _tagLabel.text = @"Made by Mike ♥︎";
     [self.expandedView addSubview:_tagLabel];
+	
+	
+	// toggles...
+	
+	_togglesView = [[UIView alloc] init];
+    //_togglesView.backgroundColor = [UIColor colorWithRed:0 green:0 blue:1 alpha:0.2];
+	
+    // SUPER-HACKY!! need this for the layer effect composition to work
+    [_togglesView.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
+	
+	
+	// Respring button
+	_respringButton = [UIButton buttonWithType:UIButtonTypeCustom];
+	//_respringButton.backgroundColor = UIColor.redColor;	
+	_respringButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+	_respringButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
+    _respringButton.tintColor = UIColor.whiteColor;
+    _respringButton.layer.compositingFilter = @"linearDodgeBlendMode";
+    _respringButton.alpha = 0.5;	
+	UIImage *respringImage = [UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"];
+	respringImage = [respringImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+	[_respringButton setImage:respringImage forState:UIControlStateNormal];
+	[_respringButton addTarget:self action:@selector(respringButtonTapped) forControlEvents:UIControlEventTouchUpInside];	
+	[_togglesView addSubview:_respringButton];
+	
+	// Restart Button
+	_restartButton = [UIButton buttonWithType:UIButtonTypeCustom];
+	//_restartButton.backgroundColor = UIColor.redColor;	
+	_restartButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+	_restartButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;	
+    _restartButton.tintColor = UIColor.whiteColor;
+    _restartButton.layer.compositingFilter = @"linearDodgeBlendMode";
+    _restartButton.alpha = 0.5;	
+	UIImage *restartImage = [UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"];
+	restartImage = [restartImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+	[_restartButton setImage:restartImage forState:UIControlStateNormal];
+	[_restartButton addTarget:self action:@selector(restartButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+	[_togglesView addSubview:_restartButton];
+	
+	// Restart Userspace Button
+	_restartUserspaceButton = [UIButton buttonWithType:UIButtonTypeCustom];
+	_restartUserspaceButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+	_restartUserspaceButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;	
+    _restartUserspaceButton.tintColor = UIColor.whiteColor;
+    _restartUserspaceButton.layer.compositingFilter = @"linearDodgeBlendMode";
+    _restartUserspaceButton.alpha = 0.5;	
+	UIImage *restartUserspaceImage = [UIImage systemImageNamed:@"exclamationmark.circle.fill"];
+	restartUserspaceImage = [restartUserspaceImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+	[_restartUserspaceButton setImage:restartUserspaceImage forState:UIControlStateNormal];
+	[_restartUserspaceButton addTarget:self action:@selector(restartUserspaceButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+	[_togglesView addSubview:_restartUserspaceButton];
+	
+	
+	
+	
+	[self.expandedView addSubview:_togglesView];
 }
 
-// start updating meters !!!
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    DebugLog(@"viewWillAppear(animated:%d)", animated);
-    DebugLog(@"expanded = %d)", self.expanded);
-    
-    [self updateLayout];
-    [self startUpdating];
-}
-
-// stop updating meters !!!
 - (void)controlCenterDidDismiss {
     DebugLog(@"controlCenterDidDismiss()");
+	
+	// stop updating meters !!!
     [self stopUpdating];
 }
 
@@ -188,7 +261,7 @@ typedef struct {
     DebugLog(@"didTransitionToExpandedContentMode(%d)", expanded);
     
     if (expanded) {
-        [self updateExpandedLayout];
+        [self layoutExpandedView];
         [self updateExpandedContent];
         self.expandedView.hidden = NO;
     }
@@ -205,23 +278,12 @@ typedef struct {
 	return YES;
 }
 
-- (void)dealloc {
-    DebugLog(@"dealloc()");
-    
-	// make SURE the timer is dead.
-	[_meterUpdateTimer invalidate];
-	_meterUpdateTimer = nil;
-}
 
 //---------- Layout ------------------------------------------------------------
 
-- (void)updateLayout {
-    DebugLog(@"updateLayout()");
+- (void)layoutCollapsedView {
+    DebugLog(@"layoutCollapsedView()");
     DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
-    
-    // set expanded module width to match small size
-    _preferredExpandedContentWidth = self.view.bounds.size.width;
-    _preferredExpandedContentHeight = self.view.bounds.size.height * 3;
     
     // update visibility...
     NSMutableArray *visibleMeters = [NSMutableArray array];
@@ -239,34 +301,44 @@ typedef struct {
     // update position...
     int count = (int)visibleMeters.count;
     if (count > 0) {
-		int topMargin = (self.view.bounds.size.height - ICON_HEIGHT - LABEL_HEIGHT) / 2;
+		int topMargin = (self.view.bounds.size.height - ICON_SIZE - LABEL_HEIGHT) / 2;
 		int width = (self.view.bounds.size.width - (2*SIDE_MARGIN)) / count;
 		int x = SIDE_MARGIN;
 		for (Meter *meter in visibleMeters) {
-			meter.icon.frame = CGRectMake(x, topMargin, width, ICON_HEIGHT);
-			meter.label.frame = CGRectMake(x, topMargin + ICON_HEIGHT, width, LABEL_HEIGHT);
+			meter.icon.frame = CGRectMake(x, topMargin, width, ICON_SIZE);
+			meter.label.frame = CGRectMake(x, topMargin + ICON_SIZE, width, LABEL_HEIGHT);
 			x += width;
             //DebugLog(@"Layed out meter (%@): Icon = %@; Label = %@", meter.name, NSStringFromCGRect(meter.icon.frame), NSStringFromCGRect(meter.label.frame));
 		}
     }
 }
 
-- (void)updateExpandedLayout {
+- (void)layoutExpandedView {
     float topMargin = 72;
+	float height = self.view.bounds.size.height - topMargin;
+	float width = self.view.bounds.size.width;
     
-    self.expandedView.frame = CGRectMake(0, topMargin, self.view.bounds.size.width, self.view.bounds.size.height - topMargin);
+    self.expandedView.frame = CGRectMake(0, topMargin, width, height);
     DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
     DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
-    
+    	
     float spaceBetweenRows = 20;
     float y = spaceBetweenRows;
     
     self.wifiSSIDLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
     y += spaceBetweenRows;
     self.wifiIPLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
-    y += spaceBetweenRows;
-    y += spaceBetweenRows;
-    self.tagLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
+    // y += spaceBetweenRows;
+    // y += spaceBetweenRows;
+    // self.tagLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
+	
+	CGRect frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 80, TOGGLE_SIZE + 10);
+	self.togglesView.frame = frame;
+	self.togglesView.center = CGPointMake(width / 2.0f, self.togglesView.center.y);
+	self.respringButton.frame = CGRectMake(0, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	self.restartButton.frame = CGRectMake(TOGGLE_SIZE + 40, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	self.restartUserspaceButton.frame = CGRectMake(2 * TOGGLE_SIZE + 80, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	
 }
 
 - (void)updateExpandedContent {
@@ -561,7 +633,8 @@ typedef struct {
 	return nil;
 }
 
-//
+
+//---------- Expanded Content Stuff --------------------------------------------
 
 - (NSString *)ipForInterface:(NSString *)interfaceName {
 	NSString *address = @"n/a";
@@ -594,5 +667,78 @@ typedef struct {
 	SBWiFiManager *wm = [objc_getClass("SBWiFiManager") sharedInstance];
     return ([wm currentNetworkName]) ?: @"n/a";
 }
+
+- (void)respringButtonTapped {
+	pid_t pid;
+	const char* args[] = { "sbreload", NULL };
+	posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+}
+
+- (void)restartButtonTapped {
+	
+	UIAlertController * alert = [UIAlertController
+		alertControllerWithTitle:@"Reboot?"
+		message:nil
+		preferredStyle:UIAlertControllerStyleAlert];
+	
+    UIAlertAction* yesButton = [UIAlertAction
+        actionWithTitle:@"Yes"
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction * action) {
+			[[FBSSystemService sharedService] reboot];
+        }];
+
+    UIAlertAction* noButton = [UIAlertAction
+       actionWithTitle:@"Cancel"
+       style:UIAlertActionStyleDefault
+       handler:^(UIAlertAction * action) {
+           // no
+       }];
+
+    [alert addAction:yesButton];
+    [alert addAction:noButton];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)restartUserspaceButtonTapped {
+	UIAlertController * alert = [UIAlertController
+		alertControllerWithTitle:@"Reboot Userspace?"
+		message:nil
+		preferredStyle:UIAlertControllerStyleAlert];
+
+    UIAlertAction* yesButton = [UIAlertAction
+        actionWithTitle:@"Yes"
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction * action) {
+			pid_t pid;
+			const char* args[] = { "launchctl", "reboot", "userspace", NULL };
+			posix_spawn(&pid, "/bin/launchctl", NULL, NULL, (char* const*)args, NULL);
+        }];
+
+    UIAlertAction* noButton = [UIAlertAction
+       actionWithTitle:@"Cancel"
+       style:UIAlertActionStyleDefault
+       handler:^(UIAlertAction * action) {
+           // no
+       }];
+
+    [alert addAction:yesButton];
+    [alert addAction:noButton];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+//------------------------------------------------------------------------------
+
+
+- (void)dealloc {
+    DebugLog(@"dealloc()");
+    
+	// make SURE the timer is dead.
+	[_meterUpdateTimer invalidate];
+	_meterUpdateTimer = nil;
+}
+
 
 @end

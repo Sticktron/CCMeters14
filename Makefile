@@ -9,7 +9,7 @@ CCMeters14_BUNDLE_EXTENSION = bundle
 CCMeters14_FILES = CCMeters14Module.m CCMeters14ViewController.m Meter.m
 CCMeters14_CFLAGS = -fobjc-arc
 CCMeters14_FRAMEWORKS = UIKit
-CCMeters14_PRIVATE_FRAMEWORKS = ControlCenterUIKit
+CCMeters14_PRIVATE_FRAMEWORKS = ControlCenterUIKit FrontBoardServices
 CCMeters14_INSTALL_PATH = /Library/ControlCenter/Bundles
 
 include $(THEOS_MAKE_PATH)/bundle.mk
