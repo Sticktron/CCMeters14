@@ -28,6 +28,7 @@
 #import <FrontBoardServices/FBSSystemService.h>
 #import <spawn.h>
 
+
 #define	RTM_IFINFO2			0x12 //from route.h
 
 #define UPDATE_INTERVAL		2.0f
@@ -35,7 +36,7 @@
 #define ICON_SIZE			24.0f
 #define LABEL_HEIGHT		16.0f
 #define SIDE_MARGIN	    	8.0f
-#define TOGGLE_SIZE		    40.0f
+#define TOGGLE_SIZE		    50.0f
 
 #define ALERT_SHUT_DOWN		0
 
@@ -80,7 +81,8 @@ typedef struct {
 @property (nonatomic, strong) UIButton *restartButton;
 @property (nonatomic, strong) UIButton *restartUserspaceButton;
 
-- (void)layoutCollapsedView;
+//- (void)layoutCollapsedView;
+
 @end
 
 //------------------------------------------------------------------------------
@@ -89,6 +91,7 @@ typedef struct {
 
 - (instancetype)init {
     if ((self = [super init])) {
+		
         // create meters
         _cpuMeter = [[Meter alloc] initWithName:@"cpu" title:@"CPU"];
         _ramMeter = [[Meter alloc] initWithName:@"ram" title:@"RAM"];
@@ -201,51 +204,15 @@ typedef struct {
 	
     // SUPER-HACKY!! need this for the layer effect composition to work
     [_togglesView.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
-	
-	
-	// Respring button
-	_respringButton = [UIButton buttonWithType:UIButtonTypeCustom];
-	//_respringButton.backgroundColor = UIColor.redColor;	
-	_respringButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
-	_respringButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
-    _respringButton.tintColor = UIColor.whiteColor;
-    _respringButton.layer.compositingFilter = @"linearDodgeBlendMode";
-    _respringButton.alpha = 0.5;	
-	UIImage *respringImage = [UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"];
-	respringImage = [respringImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	[_respringButton setImage:respringImage forState:UIControlStateNormal];
-	[_respringButton addTarget:self action:@selector(respringButtonTapped) forControlEvents:UIControlEventTouchUpInside];	
+		
+	_respringButton = [self createToggleWithImage:[UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"] title:@"Respring" action:@selector(respringButtonTapped)];
 	[_togglesView addSubview:_respringButton];
-	
-	// Restart Button
-	_restartButton = [UIButton buttonWithType:UIButtonTypeCustom];
-	//_restartButton.backgroundColor = UIColor.redColor;	
-	_restartButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
-	_restartButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;	
-    _restartButton.tintColor = UIColor.whiteColor;
-    _restartButton.layer.compositingFilter = @"linearDodgeBlendMode";
-    _restartButton.alpha = 0.5;	
-	UIImage *restartImage = [UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"];
-	restartImage = [restartImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	[_restartButton setImage:restartImage forState:UIControlStateNormal];
-	[_restartButton addTarget:self action:@selector(restartButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+		
+	_restartButton = [self createToggleWithImage:[UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"] title:@"Reboot" action:@selector(restartButtonTapped)];
 	[_togglesView addSubview:_restartButton];
 	
-	// Restart Userspace Button
-	_restartUserspaceButton = [UIButton buttonWithType:UIButtonTypeCustom];
-	_restartUserspaceButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
-	_restartUserspaceButton.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;	
-    _restartUserspaceButton.tintColor = UIColor.whiteColor;
-    _restartUserspaceButton.layer.compositingFilter = @"linearDodgeBlendMode";
-    _restartUserspaceButton.alpha = 0.5;	
-	UIImage *restartUserspaceImage = [UIImage systemImageNamed:@"exclamationmark.circle.fill"];
-	restartUserspaceImage = [restartUserspaceImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	[_restartUserspaceButton setImage:restartUserspaceImage forState:UIControlStateNormal];
-	[_restartUserspaceButton addTarget:self action:@selector(restartUserspaceButtonTapped) forControlEvents:UIControlEventTouchUpInside];
+	_restartUserspaceButton = [self createToggleWithImage:[UIImage systemImageNamed:@"exclamationmark.circle.fill"] title:@"Soft Reboot" action:@selector(restartUserspaceButtonTapped)];
 	[_togglesView addSubview:_restartUserspaceButton];
-	
-	
-	
 	
 	[self.expandedView addSubview:_togglesView];
 }
@@ -275,6 +242,22 @@ typedef struct {
 
 - (BOOL)_canShowWhileLocked {
 	return YES;
+}
+
+- (UIButton *)createToggleWithImage:(UIImage *)image title:(NSString *)title action:(SEL)action {
+	UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+	//button.backgroundColor = UIColor.redColor;
+	button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+	button.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
+	button.tintColor = UIColor.whiteColor;
+	button.layer.compositingFilter = @"linearDodgeBlendMode";
+	button.alpha = 0.5;	
+	
+	image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+	[button setImage:image forState:UIControlStateNormal];
+	[button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];	
+	
+	return button;
 }
 
 
@@ -322,7 +305,7 @@ typedef struct {
     DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
     	
     float spaceBetweenRows = 20;
-    float y = spaceBetweenRows;
+    float y = 10;
     
     self.wifiSSIDLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
     y += spaceBetweenRows;
@@ -668,9 +651,11 @@ typedef struct {
 }
 
 - (void)respringButtonTapped {
-	pid_t pid;
-	const char* args[] = { "sbreload", NULL };
-	posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+    pid_t pid;
+    int status;
+    const char* args[] = {"sbreload", NULL};
+    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+    waitpid(pid, &status, WEXITED);	
 }
 
 - (void)restartButtonTapped {
