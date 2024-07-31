@@ -10,6 +10,7 @@
 
 #import "CCMeters14ViewController.h"
 #import "Meter.h"
+#import "Toggle.h"
 
 #import <sys/socket.h>
 #import <sys/sysctl.h>
@@ -36,7 +37,7 @@
 #define ICON_SIZE			24.0f
 #define LABEL_HEIGHT		16.0f
 #define SIDE_MARGIN	    	8.0f
-#define TOGGLE_SIZE		    50.0f
+#define TOGGLE_SIZE		    60.0f
 
 #define ALERT_SHUT_DOWN		0
 
@@ -52,13 +53,16 @@ typedef struct {
     uint64_t totalUploadBytes;
 } NetSample;
 
+
 @interface UIImage (CCM)
 + (id)imageNamed:(id)name inBundle:(id)bundle;
 @end
 
+
 //------------------------------------------------------------------------------
 
 @interface CCMeters14ViewController ()
+
 @property (nonatomic, strong) Meter *cpuMeter;
 @property (nonatomic, strong) Meter *ramMeter;
 @property (nonatomic, strong) Meter *diskMeter;
@@ -77,13 +81,12 @@ typedef struct {
 @property (nonatomic, strong) UILabel *tagLabel;
 
 @property (nonatomic, strong) UIView *togglesView;
-@property (nonatomic, strong) UIButton *respringButton;
-@property (nonatomic, strong) UIButton *restartButton;
-@property (nonatomic, strong) UIButton *restartUserspaceButton;
-
-//- (void)layoutCollapsedView;
+@property (nonatomic, strong) Toggle *respringToggle;
+@property (nonatomic, strong) Toggle *rebootToggle;
+@property (nonatomic, strong) Toggle *restartUserspaceToggle;
 
 @end
+
 
 //------------------------------------------------------------------------------
 
@@ -133,6 +136,36 @@ typedef struct {
     [self startUpdating]; // start updating meters !!!
 }
 
+- (void)controlCenterDidDismiss {
+    DebugLog(@"controlCenterDidDismiss()");
+	
+	// stop updating meters !!!
+    [self stopUpdating];
+}
+
+- (void)didTransitionToExpandedContentMode:(BOOL)expanded {
+    DebugLog(@"didTransitionToExpandedContentMode(%d)", expanded);
+    if (expanded) {
+	    [self layoutExpandedView];
+        [self updateExpandedContent];
+        self.expandedView.hidden = NO;
+    }
+}
+
+- (void)willTransitionToExpandedContentMode:(BOOL)expanded {
+    DebugLog(@"willTransitionToExpandedContentMode(%d)", expanded);
+    if (!expanded) {
+        self.expandedView.hidden = YES;
+    }
+}
+
+- (BOOL)_canShowWhileLocked {
+	return YES;
+}
+
+
+//---------- Setup + Layout ----------------------------------------------------
+
 - (void)setupCollapsedView {
 	for (Meter *meter in self.meters) {
         
@@ -171,7 +204,7 @@ typedef struct {
 
 - (void)setupExpandedView {
     _expandedView = [[UIView alloc] init];
-	//_expandedView.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.2];
+	_expandedView.hidden = YES;
     [self.view addSubview:_expandedView];
     
     // SSID
@@ -203,65 +236,22 @@ typedef struct {
     //_togglesView.backgroundColor = [UIColor colorWithRed:0 green:0 blue:1 alpha:0.2];
 	
     // SUPER-HACKY!! need this for the layer effect composition to work
-    [_togglesView.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
-		
-	_respringButton = [self createToggleWithImage:[UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"] title:@"Respring" action:@selector(respringButtonTapped)];
-	[_togglesView addSubview:_respringButton];
-		
-	_restartButton = [self createToggleWithImage:[UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"] title:@"Reboot" action:@selector(restartButtonTapped)];
-	[_togglesView addSubview:_restartButton];
+    //[_togglesView.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
 	
-	_restartUserspaceButton = [self createToggleWithImage:[UIImage systemImageNamed:@"exclamationmark.circle.fill"] title:@"Soft Reboot" action:@selector(restartUserspaceButtonTapped)];
-	[_togglesView addSubview:_restartUserspaceButton];
+	_respringToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"] title:@"Respring"];
+	[_respringToggle.button addTarget:self action:@selector(respringToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
+	[_togglesView addSubview:_respringToggle];
+		
+	_rebootToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"] title:@"Reboot"];
+	[_rebootToggle.button addTarget:self action:@selector(rebootToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
+	[_togglesView addSubview:_rebootToggle];
+
+	_restartUserspaceToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"exclamationmark.circle.fill"] title:@"Soft Reboot"];
+	[_restartUserspaceToggle.button addTarget:self action:@selector(restartUserspaceToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
+	[_togglesView addSubview:_restartUserspaceToggle];
 	
 	[self.expandedView addSubview:_togglesView];
 }
-
-- (void)controlCenterDidDismiss {
-    DebugLog(@"controlCenterDidDismiss()");
-	
-	// stop updating meters !!!
-    [self stopUpdating];
-}
-
-- (void)didTransitionToExpandedContentMode:(BOOL)expanded {
-    DebugLog(@"didTransitionToExpandedContentMode(%d)", expanded);
-    if (expanded) {
-	    [self layoutExpandedView];
-        [self updateExpandedContent];
-        self.expandedView.hidden = NO;
-    }
-}
-
-- (void)willTransitionToExpandedContentMode:(BOOL)expanded {
-    DebugLog(@"willTransitionToExpandedContentMode(%d)", expanded);
-    if (!expanded) {
-        self.expandedView.hidden = YES;
-    }
-}
-
-- (BOOL)_canShowWhileLocked {
-	return YES;
-}
-
-- (UIButton *)createToggleWithImage:(UIImage *)image title:(NSString *)title action:(SEL)action {
-	UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
-	//button.backgroundColor = UIColor.redColor;
-	button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
-	button.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
-	button.tintColor = UIColor.whiteColor;
-	button.layer.compositingFilter = @"linearDodgeBlendMode";
-	button.alpha = 0.5;	
-	
-	image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	[button setImage:image forState:UIControlStateNormal];
-	[button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];	
-	
-	return button;
-}
-
-
-//---------- Layout ------------------------------------------------------------
 
 - (void)layoutCollapsedView {
     DebugLog(@"layoutCollapsedView()");
@@ -305,7 +295,7 @@ typedef struct {
     DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
     	
     float spaceBetweenRows = 20;
-    float y = 10;
+    float y = 5;
     
     self.wifiSSIDLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
     y += spaceBetweenRows;
@@ -314,12 +304,12 @@ typedef struct {
     // y += spaceBetweenRows;
     // self.tagLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
 	
-	CGRect frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 80, TOGGLE_SIZE + 10);
+	CGRect frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 50, TOGGLE_SIZE);
 	self.togglesView.frame = frame;
 	self.togglesView.center = CGPointMake(width / 2.0f, self.togglesView.center.y);
-	self.respringButton.frame = CGRectMake(0, 0, TOGGLE_SIZE, TOGGLE_SIZE);
-	self.restartButton.frame = CGRectMake(TOGGLE_SIZE + 40, 0, TOGGLE_SIZE, TOGGLE_SIZE);
-	self.restartUserspaceButton.frame = CGRectMake(2 * TOGGLE_SIZE + 80, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	self.respringToggle.frame = CGRectMake(0, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	self.rebootToggle.frame = CGRectMake(TOGGLE_SIZE + 25, 0, TOGGLE_SIZE, TOGGLE_SIZE);
+	self.restartUserspaceToggle.frame = CGRectMake(2 * TOGGLE_SIZE + 50, 0, TOGGLE_SIZE, TOGGLE_SIZE);
 	
 }
 
@@ -650,7 +640,7 @@ typedef struct {
     return ([wm currentNetworkName]) ?: @"n/a";
 }
 
-- (void)respringButtonTapped {
+- (void)respringToggleTapped {
     pid_t pid;
     int status;
     const char* args[] = {"sbreload", NULL};
@@ -658,7 +648,7 @@ typedef struct {
     waitpid(pid, &status, WEXITED);	
 }
 
-- (void)restartButtonTapped {
+- (void)rebootToggleTapped {
 	
 	UIAlertController * alert = [UIAlertController
 		alertControllerWithTitle:@"Reboot?"
@@ -685,7 +675,7 @@ typedef struct {
     [self presentViewController:alert animated:YES completion:nil];
 }
 
-- (void)restartUserspaceButtonTapped {
+- (void)restartUserspaceToggleTapped {
 	UIAlertController * alert = [UIAlertController
 		alertControllerWithTitle:@"Reboot Userspace?"
 		message:nil
