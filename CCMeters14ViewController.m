@@ -54,11 +54,6 @@ typedef struct {
 } NetSample;
 
 
-@interface UIImage (CCM)
-+ (id)imageNamed:(id)name inBundle:(id)bundle;
-@end
-
-
 //------------------------------------------------------------------------------
 
 @interface CCMeters14ViewController ()
@@ -115,7 +110,7 @@ typedef struct {
 - (void)viewDidLoad {
     [super viewDidLoad];
 	
-    // SUPER-HACKY!! need this for the layer effect composition to work
+    // Need this for the layer effect composition to work !!!
     [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
 	
 	[self setupCollapsedView];
@@ -167,44 +162,16 @@ typedef struct {
 //---------- Setup + Layout ----------------------------------------------------
 
 - (void)setupCollapsedView {
-	for (Meter *meter in self.meters) {
-        
-		// create icon...
-        UIButton *icon = [[UIButton alloc] init];
-		icon.userInteractionEnabled = NO;
-        NSBundle *bundle = [NSBundle bundleWithPath:@"/Library/ControlCenter/Bundles/CCMeters14.bundle"];
-        UIImage *iconImage = [UIImage imageNamed:meter.name inBundle:bundle];
-		iconImage = [iconImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-		[icon setImage:iconImage forState:UIControlStateNormal];
-        icon.tintColor = UIColor.whiteColor;
-        // icon.layer.compositingFilter = @"plusL";
-        icon.layer.compositingFilter = @"linearDodgeBlendMode";
-        icon.alpha = 0.5;
-                
-        // test border
-        // icon.layer.borderWidth = 1;
-        // icon.layer.borderColor = UIColor.greenColor.CGColor;
-        [self.view addSubview:icon];
-		meter.icon = icon;
-        
-		// create label...
-        UILabel *label = [[UILabel alloc] init];
-        // label.font = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
-        label.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
-		label.textAlignment = NSTextAlignmentCenter;
-        label.textColor = UIColor.whiteColor;
-		label.text = meter.title;
-        // test border
-        // label.layer.borderWidth = 1;
-        // label.layer.borderColor = UIColor.greenColor.CGColor;
-		[self.view addSubview:label];
-		meter.label = label;
-	}	
+	for (Meter *meter in self.meters) {        
+	    [self.view addSubview:meter.icon];
+		[self.view addSubview:meter.label];
+	}
 }
 
 - (void)setupExpandedView {
     _expandedView = [[UIView alloc] init];
 	_expandedView.hidden = YES;
+	
     [self.view addSubview:_expandedView];
     
     // SSID
@@ -221,32 +188,21 @@ typedef struct {
     _wifiIPLabel.textColor = UIColor.whiteColor;
     [self.expandedView addSubview:_wifiIPLabel];
     
-    // tag
-    _tagLabel = [[UILabel alloc] init];
-    _tagLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
-    _tagLabel.textAlignment = NSTextAlignmentCenter;
-    _tagLabel.textColor = UIColor.whiteColor;
-    _tagLabel.text = @"Made by Mike ♥︎";
-    [self.expandedView addSubview:_tagLabel];
-	
 	
 	// toggles...
 	
-	_togglesView = [[UIView alloc] init];
+	_togglesView = [[UIView alloc] init];	
     //_togglesView.backgroundColor = [UIColor colorWithRed:0 green:0 blue:1 alpha:0.2];
 	
-    // SUPER-HACKY!! need this for the layer effect composition to work
-    //[_togglesView.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
-	
-	_respringToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"] title:@"Respring"];
+	_respringToggle = [[Toggle alloc] initWithTitle:@"Respring" image:[UIImage systemImageNamed:@"arrow.counterclockwise.circle.fill"]];
 	[_respringToggle.button addTarget:self action:@selector(respringToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
 	[_togglesView addSubview:_respringToggle];
 		
-	_rebootToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"] title:@"Reboot"];
+	_rebootToggle = [[Toggle alloc] initWithTitle:@"Reboot" image:[UIImage systemImageNamed:@"arrow.triangle.2.circlepath.circle.fill"]];
 	[_rebootToggle.button addTarget:self action:@selector(rebootToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
 	[_togglesView addSubview:_rebootToggle];
 
-	_restartUserspaceToggle = [[Toggle alloc] initWithImage:[UIImage systemImageNamed:@"exclamationmark.circle.fill"] title:@"Soft Reboot"];
+	_restartUserspaceToggle = [[Toggle alloc] initWithTitle:@"Soft Reboot" image:[UIImage systemImageNamed:@"exclamationmark.circle.fill"]];
 	[_restartUserspaceToggle.button addTarget:self action:@selector(restartUserspaceToggleTapped) forControlEvents:UIControlEventTouchUpInside];	
 	[_togglesView addSubview:_restartUserspaceToggle];
 	
@@ -257,32 +213,16 @@ typedef struct {
     DebugLog(@"layoutCollapsedView()");
     DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
     
-    // update visibility...
-    NSMutableArray *visibleMeters = [NSMutableArray array];
-    for (Meter *meter in self.meters) {
-        if (meter.enabled) {
-            meter.icon.hidden = NO;
-            meter.label.hidden = NO;
-            [visibleMeters addObject:meter];
-        } else {
-            meter.icon.hidden = YES;
-            meter.label.hidden = YES;
-        }
-    }
-        
-    // update position...
-    int count = (int)visibleMeters.count;
-    if (count > 0) {
-		int topMargin = (self.view.bounds.size.height - ICON_SIZE - LABEL_HEIGHT) / 2;
-		int width = (self.view.bounds.size.width - (2*SIDE_MARGIN)) / count;
-		int x = SIDE_MARGIN;
-		for (Meter *meter in visibleMeters) {
-			meter.icon.frame = CGRectMake(x, topMargin, width, ICON_SIZE);
-			meter.label.frame = CGRectMake(x, topMargin + ICON_SIZE, width, LABEL_HEIGHT);
-			x += width;
-            //DebugLog(@"Layed out meter (%@): Icon = %@; Label = %@", meter.name, NSStringFromCGRect(meter.icon.frame), NSStringFromCGRect(meter.label.frame));
-		}
-    }
+    // update meter positions
+	int topMargin = (self.view.bounds.size.height - ICON_SIZE - LABEL_HEIGHT) / 2;
+	int width = (self.view.bounds.size.width - (2 * SIDE_MARGIN)) / self.meters.count;
+	int x = SIDE_MARGIN;
+	for (Meter *meter in self.meters) {
+		meter.icon.frame = CGRectMake(x, topMargin, width, ICON_SIZE);
+		meter.label.frame = CGRectMake(x, topMargin + ICON_SIZE, width, LABEL_HEIGHT);
+		x += width;
+        //DebugLog(@"Layed out meter (%@): Icon = %@; Label = %@", meter.name, NSStringFromCGRect(meter.icon.frame), NSStringFromCGRect(meter.label.frame));
+	}
 }
 
 - (void)layoutExpandedView {
@@ -300,10 +240,8 @@ typedef struct {
     self.wifiSSIDLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
     y += spaceBetweenRows;
     self.wifiIPLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
-    // y += spaceBetweenRows;
-    // y += spaceBetweenRows;
-    // self.tagLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
 	
+	// toggles
 	CGRect frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 50, TOGGLE_SIZE);
 	self.togglesView.frame = frame;
 	self.togglesView.center = CGPointMake(width / 2.0f, self.togglesView.center.y);
@@ -360,71 +298,65 @@ typedef struct {
     DebugLog(@"updateMeters called (timer %@)", timer);
     
     // Disk Meter: free space on /User
-    if (self.diskMeter.enabled) {
-        unsigned long long bytesFree = [self diskFreeInBytesForPath:@"/"];
-        DebugLog(@"***** bytesFree = %llu", bytesFree);
-        //unsigned long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
-        double gigsFree = (double)bytesFree / (1024*1024*1024);
-        [self.diskMeter.label setText:[NSString stringWithFormat:@"%.1f GB", gigsFree]];
-    }
+	//--------------------------------------------------------------------------
+    unsigned long long bytesFree = [self diskFreeInBytesForPath:@"/"];
+    //unsigned long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
+    DebugLog(@"***** bytesFree = %llu", bytesFree);
+    double gigsFree = (double)bytesFree / (1024*1024*1024);
+    [self.diskMeter.label setText:[NSString stringWithFormat:@"%.1f GB", gigsFree]];
     
+	
     // RAM Meter: "available" memory (free + inactive)
-    if (self.ramMeter.enabled) {
-        uint32_t ram = [self memoryAvailableInBytes];
-        ram /= (1024*1024); // convert to MB
-        [self.ramMeter.label setText:[NSString stringWithFormat:@"%u MB", ram]];
-    }
+	//--------------------------------------------------------------------------
+    uint32_t ram = [self memoryAvailableInBytes];
+    ram /= (1024*1024); // convert to MB
+    [self.ramMeter.label setText:[NSString stringWithFormat:@"%u MB", ram]];
     
+	
     // CPU Meter: percentage of time in use since last sample
-    if (self.cpuMeter.enabled) {
-        CPUSample cpu_delta;
-        CPUSample cpu_sample = [self getCPUSample];
-        
-        // get usage for period
-        cpu_delta.totalUserTime = cpu_sample.totalUserTime - self.lastCPUSample.totalUserTime;
-        cpu_delta.totalSystemTime = cpu_sample.totalSystemTime - self.lastCPUSample.totalSystemTime;
-        cpu_delta.totalIdleTime = cpu_sample.totalIdleTime - self.lastCPUSample.totalIdleTime;
-        
-        // calculate time spent in use as a percentage of the total time
-        uint64_t total = cpu_delta.totalUserTime + cpu_delta.totalSystemTime + cpu_delta.totalIdleTime;
-        //		double idle = (double)(cpu_delta.totalIdleTime) / (double)total * 100.0; // in %
-        //		double used = 100.0 - idle;
-        double used = ((cpu_delta.totalUserTime + cpu_delta.totalSystemTime) / (double)total) * 100.0;
-        
-        [self.cpuMeter.label setText:[NSString stringWithFormat:@"%.1f %%", used]];
-        
-        // save this sample for next time
-        self.lastCPUSample = cpu_sample;
-    }
+	//--------------------------------------------------------------------------
+    CPUSample cpu_delta;
+    CPUSample cpu_sample = [self getCPUSample];
     
+    // get usage for period
+    cpu_delta.totalUserTime = cpu_sample.totalUserTime - self.lastCPUSample.totalUserTime;
+    cpu_delta.totalSystemTime = cpu_sample.totalSystemTime - self.lastCPUSample.totalSystemTime;
+    cpu_delta.totalIdleTime = cpu_sample.totalIdleTime - self.lastCPUSample.totalIdleTime;
     
+    // calculate time spent in use as a percentage of the total time
+    uint64_t total = cpu_delta.totalUserTime + cpu_delta.totalSystemTime + cpu_delta.totalIdleTime;
+    //		double idle = (double)(cpu_delta.totalIdleTime) / (double)total * 100.0; // in %
+    //		double used = 100.0 - idle;
+    double used = ((cpu_delta.totalUserTime + cpu_delta.totalSystemTime) / (double)total) * 100.0;
+    
+    [self.cpuMeter.label setText:[NSString stringWithFormat:@"%.1f %%", used]];
+    
+    // save this sample for next time
+    self.lastCPUSample = cpu_sample;
+    
+	
     // Net Meters: bandwidth used during sample period, normalized to per-second values
-    if (self.uploadMeter.enabled || self.downloadMeter.enabled) {
-        NetSample net_delta;
-        NetSample net_sample = [self getNetSample];
-        
-        // calculate period length
-        net_delta.timestamp = (net_sample.timestamp - self.lastNetSample.timestamp);
-        double interval = net_delta.timestamp / 1000.0 / 1000.0 / 1000.0; // ns-to-s
-        //DebugLog(@"Net Meters sample delta: %fs", interval);
-        
-        // get bytes transferred since last sample was taken
-        net_delta.totalUploadBytes = net_sample.totalUploadBytes - self.lastNetSample.totalUploadBytes;
-        net_delta.totalDownloadBytes = net_sample.totalDownloadBytes - self.lastNetSample.totalDownloadBytes;
-        
-        if (self.uploadMeter.enabled) {
-            double ul = (double)net_delta.totalUploadBytes / interval;
-            self.uploadMeter.label.text = [self formatBytes:ul];
-        }
-        
-        if (self.downloadMeter.enabled) {
-            double dl = net_delta.totalDownloadBytes / interval;
-            self.downloadMeter.label.text = [self formatBytes:dl];
-        }
-        
-        // save this sample for next time
-        self.lastNetSample = net_sample;
-    }
+	//--------------------------------------------------------------------------
+    NetSample net_delta;
+    NetSample net_sample = [self getNetSample];
+    
+    // calculate period length
+    net_delta.timestamp = (net_sample.timestamp - self.lastNetSample.timestamp);
+    double interval = net_delta.timestamp / 1000.0 / 1000.0 / 1000.0; // ns-to-s
+    //DebugLog(@"Net Meters sample delta: %fs", interval);
+    
+    // get bytes transferred since last sample was taken
+    net_delta.totalUploadBytes = net_sample.totalUploadBytes - self.lastNetSample.totalUploadBytes;
+    net_delta.totalDownloadBytes = net_sample.totalDownloadBytes - self.lastNetSample.totalDownloadBytes;
+    
+    double ul = (double)net_delta.totalUploadBytes / interval;
+    self.uploadMeter.label.text = [self formatBytes:ul];
+	
+    double dl = net_delta.totalDownloadBytes / interval;
+    self.downloadMeter.label.text = [self formatBytes:dl];
+    
+    // save this sample for next time
+    self.lastNetSample = net_sample;
 }
 
 - (unsigned long long)diskFreeInBytesForPath:(NSString *)path {
@@ -657,13 +589,13 @@ typedef struct {
 	
     UIAlertAction* yesButton = [UIAlertAction
         actionWithTitle:@"Yes"
-        style:UIAlertActionStyleDefault
+        style:UIAlertActionStyleDestructive
         handler:^(UIAlertAction * action) {
 			[[FBSSystemService sharedService] reboot];
         }];
 
     UIAlertAction* noButton = [UIAlertAction
-       actionWithTitle:@"Cancel"
+       actionWithTitle:@"No"
        style:UIAlertActionStyleDefault
        handler:^(UIAlertAction * action) {
            // no
@@ -683,7 +615,7 @@ typedef struct {
 
     UIAlertAction* yesButton = [UIAlertAction
         actionWithTitle:@"Yes"
-        style:UIAlertActionStyleDefault
+        style:UIAlertActionStyleDestructive
         handler:^(UIAlertAction * action) {
 			pid_t pid;
 			const char* args[] = { "launchctl", "reboot", "userspace", NULL };
@@ -691,7 +623,7 @@ typedef struct {
         }];
 
     UIAlertAction* noButton = [UIAlertAction
-       actionWithTitle:@"Cancel"
+       actionWithTitle:@"No"
        style:UIAlertActionStyleDefault
        handler:^(UIAlertAction * action) {
            // no

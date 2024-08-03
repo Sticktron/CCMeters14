@@ -12,18 +12,17 @@
 #define LABEL_HEIGHT 10
 
 
-@interface Toggle ()
-@property (nonatomic, strong) UILabel *label;
-@property (nonatomic, strong) UIImage *image;
-@property (nonatomic, strong) NSString *title;
-@end
-
 @implementation Toggle
 
-- (instancetype)initWithImage:(UIImage *)image title:(NSString *)title {
+- (instancetype)initWithTitle:(NSString *)title image:(UIImage *)image {
 	if (self = [super initWithFrame:CGRectMake(0, 0, SIZE, SIZE)]) {
-		_image = image;
+		
+		// Need this for the layer effect composition to work !!!
+	    [self.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
+		
 		_title = title;
+		_image = image;
+		
 		[self setup];
 	}
 	return self;
@@ -37,11 +36,11 @@
 	_button.frame = CGRectMake((SIZE - BUTTON_HEIGHT) / 2, 0, BUTTON_HEIGHT, BUTTON_HEIGHT);
 	_button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
 	_button.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
-	_button.tintColor = UIColor.whiteColor;
-	_button.layer.compositingFilter = @"linearDodgeBlendMode";
-	_button.alpha = 0.5;
 	_image = [_image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 	[_button setImage:_image forState:UIControlStateNormal];	
+	_button.tintColor = UIColor.whiteColor;
+	_button.layer.compositingFilter = @"linearDodgeBlendMode";
+	_button.alpha = 0.4;
 	[self addSubview:_button];
 	
 	// Label ...
@@ -52,7 +51,7 @@
 	_label.textAlignment = NSTextAlignmentCenter;
 	_label.textColor = UIColor.whiteColor;
 	_label.layer.compositingFilter = @"linearDodgeBlendMode";
-	_label.alpha = 0.5;
+	_label.alpha = 0.4;
 	_label.text = _title;
 	[self addSubview:_label];
 }
