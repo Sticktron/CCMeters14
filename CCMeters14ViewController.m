@@ -573,11 +573,34 @@ typedef struct {
 }
 
 - (void)respringToggleTapped {
-    pid_t pid;
-    int status;
-    const char* args[] = {"sbreload", NULL};
-    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
-    waitpid(pid, &status, WEXITED);	
+	
+	UIAlertController * alert = [UIAlertController
+		alertControllerWithTitle:@"Restart SpringBoard?"
+		message:nil
+		preferredStyle:UIAlertControllerStyleAlert];
+	
+    UIAlertAction* yesButton = [UIAlertAction
+        actionWithTitle:@"Yes"
+        style:UIAlertActionStyleDestructive
+        handler:^(UIAlertAction * action) {
+		    pid_t pid;
+		    int status;
+		    const char* args[] = {"sbreload", NULL};
+		    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+		    waitpid(pid, &status, WEXITED);	
+        }];
+
+    UIAlertAction* noButton = [UIAlertAction
+       actionWithTitle:@"No"
+       style:UIAlertActionStyleDefault
+       handler:^(UIAlertAction * action) {
+           // no
+       }];
+
+    [alert addAction:yesButton];
+    [alert addAction:noButton];
+
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)rebootToggleTapped {
