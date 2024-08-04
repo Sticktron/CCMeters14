@@ -113,6 +113,8 @@ typedef struct {
     // Need this for the layer effect composition to work !!!
     [self.view.layer setValue:@(NO) forKey:@"allowsGroupBlending"];
 	
+	self.view.clipsToBounds = YES;
+	
 	[self setupCollapsedView];
 	[self setupExpandedView];
 }
@@ -138,19 +140,21 @@ typedef struct {
     [self stopUpdating];
 }
 
-- (void)didTransitionToExpandedContentMode:(BOOL)expanded {
-    DebugLog(@"didTransitionToExpandedContentMode(%d)", expanded);
-    if (expanded) {
-	    [self layoutExpandedView];
-        [self updateExpandedContent];
-        self.expandedView.hidden = NO;
+- (void)willTransitionToExpandedContentMode:(BOOL)toExpanded {
+    DebugLog(@"willTransitionToExpandedContentMode: %d", toExpanded);
+    if (toExpanded == YES) {
+        //self.expandedView.hidden = NO;
     }
 }
 
-- (void)willTransitionToExpandedContentMode:(BOOL)expanded {
-    DebugLog(@"willTransitionToExpandedContentMode(%d)", expanded);
-    if (!expanded) {
-        self.expandedView.hidden = YES;
+- (void)didTransitionToExpandedContentMode:(BOOL)toExpanded {
+    DebugLog(@"didTransitionToExpandedContentMode: %d", toExpanded);
+    if (toExpanded == YES) {
+	    [self layoutExpandedView];
+        self.expandedView.hidden = NO;
+        [self updateExpandedContent];
+    } else {
+        //self.expandedView.hidden = YES;
     }
 }
 
@@ -301,7 +305,7 @@ typedef struct {
 	//--------------------------------------------------------------------------
     unsigned long long bytesFree = [self diskFreeInBytesForPath:@"/"];
     //unsigned long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
-    DebugLog(@"***** bytesFree = %llu", bytesFree);
+    //DebugLog(@"***** bytesFree = %llu", bytesFree);
     double gigsFree = (double)bytesFree / (1024*1024*1024);
     [self.diskMeter.label setText:[NSString stringWithFormat:@"%.1f GB", gigsFree]];
     
