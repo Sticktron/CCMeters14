@@ -143,16 +143,20 @@ typedef struct {
 - (void)willTransitionToExpandedContentMode:(BOOL)toExpanded {
     DebugLog(@"willTransitionToExpandedContentMode: %d", toExpanded);
     if (toExpanded == YES) {
-        //self.expandedView.hidden = NO;
+	    [self layoutExpandedView];
+        [self updateExpandedContent];
+        self.expandedView.hidden = NO;
+    } else {
+        self.expandedView.hidden = YES;
     }
 }
 
 - (void)didTransitionToExpandedContentMode:(BOOL)toExpanded {
     DebugLog(@"didTransitionToExpandedContentMode: %d", toExpanded);
     if (toExpanded == YES) {
-	    [self layoutExpandedView];
-        self.expandedView.hidden = NO;
-        [self updateExpandedContent];
+	    // [self layoutExpandedView];
+	    //         self.expandedView.hidden = NO;
+	    //         [self updateExpandedContent];
     } else {
         //self.expandedView.hidden = YES;
     }
@@ -231,10 +235,12 @@ typedef struct {
 
 - (void)layoutExpandedView {
     float topMargin = 72;
-	float height = self.view.bounds.size.height - topMargin;
+	//float height = self.view.bounds.size.height - topMargin;
+	float height = self.preferredExpandedContentHeight - topMargin;
 	float width = self.view.bounds.size.width;
     
     self.expandedView.frame = CGRectMake(0, topMargin, width, height);
+	//self.expandedView.backgroundColor = UIColor.redColor;
     DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
     DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
     	
@@ -246,9 +252,11 @@ typedef struct {
     self.wifiIPLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
 	
 	// toggles
-	CGRect frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 50, TOGGLE_SIZE);
-	self.togglesView.frame = frame;
+	self.togglesView.frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 50, TOGGLE_SIZE);
 	self.togglesView.center = CGPointMake(width / 2.0f, self.togglesView.center.y);
+	
+	// self.togglesView.frame = CGRectMake(0, height - TOGGLE_SIZE - 10, width, TOGGLE_SIZE);
+	
 	self.respringToggle.frame = CGRectMake(0, 0, TOGGLE_SIZE, TOGGLE_SIZE);
 	self.rebootToggle.frame = CGRectMake(TOGGLE_SIZE + 25, 0, TOGGLE_SIZE, TOGGLE_SIZE);
 	self.restartUserspaceToggle.frame = CGRectMake(2 * TOGGLE_SIZE + 50, 0, TOGGLE_SIZE, TOGGLE_SIZE);
@@ -577,34 +585,11 @@ typedef struct {
 }
 
 - (void)respringToggleTapped {
-	
-	UIAlertController * alert = [UIAlertController
-		alertControllerWithTitle:@"Restart SpringBoard?"
-		message:nil
-		preferredStyle:UIAlertControllerStyleAlert];
-	
-    UIAlertAction* yesButton = [UIAlertAction
-        actionWithTitle:@"Yes"
-        style:UIAlertActionStyleDestructive
-        handler:^(UIAlertAction * action) {
-		    pid_t pid;
-		    int status;
-		    const char* args[] = {"sbreload", NULL};
-		    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
-		    waitpid(pid, &status, WEXITED);	
-        }];
-
-    UIAlertAction* noButton = [UIAlertAction
-       actionWithTitle:@"No"
-       style:UIAlertActionStyleDefault
-       handler:^(UIAlertAction * action) {
-           // no
-       }];
-
-    [alert addAction:yesButton];
-    [alert addAction:noButton];
-
-    [self presentViewController:alert animated:YES completion:nil];
+    pid_t pid;
+    int status;
+    const char* args[] = {"sbreload", NULL};
+    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+    waitpid(pid, &status, WEXITED);	
 }
 
 - (void)rebootToggleTapped {
