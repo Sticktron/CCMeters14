@@ -358,8 +358,18 @@ typedef struct {
     //DebugLog(@"Net Meters sample delta: %fs", interval);
     
     // get bytes transferred since last sample was taken
-    net_delta.totalUploadBytes = net_sample.totalUploadBytes - self.lastNetSample.totalUploadBytes;
-    net_delta.totalDownloadBytes = net_sample.totalDownloadBytes - self.lastNetSample.totalDownloadBytes;
+	if (self.lastNetSample.totalUploadBytes < net_sample.totalUploadBytes) {
+	    net_delta.totalUploadBytes = net_sample.totalUploadBytes - self.lastNetSample.totalUploadBytes;		
+	} else {
+		net_delta.totalUploadBytes = 0;
+	}
+	//DebugLog(@"net_delta.totalUploadBytes = %llu", net_delta.totalUploadBytes);
+	if (self.lastNetSample.totalDownloadBytes < net_sample.totalDownloadBytes) {
+	    net_delta.totalDownloadBytes = net_sample.totalDownloadBytes - self.lastNetSample.totalDownloadBytes;
+	} else {
+		net_delta.totalDownloadBytes = 0;
+	}
+    //DebugLog(@"net_delta.totalDownloadBytes = %llu", net_delta.totalDownloadBytes);
     
     double ul = (double)net_delta.totalUploadBytes / interval;
     self.uploadMeter.label.text = [self formatBytes:ul];
