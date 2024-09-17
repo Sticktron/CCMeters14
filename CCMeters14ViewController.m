@@ -595,11 +595,16 @@ typedef struct {
 }
 
 - (void)respringToggleTapped {
-    pid_t pid;
-    int status;
-    const char* args[] = {"sbreload", NULL};
-    posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
-    waitpid(pid, &status, WEXITED);	
+    // pid_t pid;
+    // int status;
+    // const char* args[] = {"sbreload", NULL};
+    // posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
+    // waitpid(pid, &status, WEXITED);
+	
+	NSLog(@"CCMeters: User requested a respring.");
+	pid_t pid;
+	const char* args[] = { "killall", "-HUP", "SpringBoard", NULL };
+	posix_spawn(&pid, "/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
 }
 
 - (void)rebootToggleTapped {
