@@ -2,7 +2,7 @@
 //  Meter.h
 //  CCMeters14
 //
-//  Copyright © 2024 Sticktron. All rights reserved.
+//  Copyright © Sticktron. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>

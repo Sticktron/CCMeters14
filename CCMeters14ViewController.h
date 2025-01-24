@@ -2,7 +2,7 @@
 //  CCMeters14ViewController.h
 //  CCMeters14
 //
-//  Copyright © 2024 Sticktron. All rights reserved.
+//  Copyright © Sticktron. All rights reserved.
 //
 
 #import <UIKit/UIViewController.h>
@@ -18,4 +18,5 @@
 @property (nonatomic, readonly) BOOL small;
 
 //- (instancetype)initWithSmallSize:(BOOL)small;
+
 @end

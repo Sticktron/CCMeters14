@@ -2,7 +2,7 @@
 //  CCMeters14Module.m
 //  CCMeters14
 //
-//  Copyright © 2024 Sticktron. All rights reserved.
+//  Copyright © Sticktron. All rights reserved.
 //
 
 #define DEBUG_PREFIX @" [CCMeters14Module] >> "

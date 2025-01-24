@@ -2,7 +2,7 @@
 //  CCMeters14ViewController.m
 //  CCMeters14
 //
-//  Copyright © 2024 Sticktron. All rights reserved.
+//  Copyright © Sticktron. All rights reserved.
 //
 
 #define DEBUG_PREFIX @" [CCMeters14ViewController] >> "
@@ -121,8 +121,6 @@ typedef struct {
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    DebugLog(@"viewWillAppear(animated:%d)", animated);
-    DebugLog(@"expanded = %d)", self.expanded);
     
     // set expanded module width to match small size
     _preferredExpandedContentWidth = self.view.bounds.size.width;
@@ -134,10 +132,7 @@ typedef struct {
 }
 
 - (void)controlCenterDidDismiss {
-    DebugLog(@"controlCenterDidDismiss()");
-	
-	// stop updating meters !!!
-    [self stopUpdating];
+    [self stopUpdating]; // stop updating meters !!!
 }
 
 - (void)willTransitionToExpandedContentMode:(BOOL)toExpanded {
@@ -151,19 +146,14 @@ typedef struct {
     }
 }
 
-- (void)didTransitionToExpandedContentMode:(BOOL)toExpanded {
-    DebugLog(@"didTransitionToExpandedContentMode: %d", toExpanded);
-    if (toExpanded == YES) {
-	    // [self layoutExpandedView];
-	    //         self.expandedView.hidden = NO;
-	    //         [self updateExpandedContent];
-    } else {
-        //self.expandedView.hidden = YES;
-    }
-}
-
 - (BOOL)_canShowWhileLocked {
 	return YES;
+}
+
+- (void)dealloc {
+	// make SURE the timer is dead.
+	[_meterUpdateTimer invalidate];
+	_meterUpdateTimer = nil;
 }
 
 
@@ -218,8 +208,7 @@ typedef struct {
 }
 
 - (void)layoutCollapsedView {
-    DebugLog(@"layoutCollapsedView()");
-    DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
+    //DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
     
     // update meter positions
 	int topMargin = (self.view.bounds.size.height - ICON_SIZE - LABEL_HEIGHT) / 2;
@@ -235,28 +224,26 @@ typedef struct {
 
 - (void)layoutExpandedView {
     float topMargin = 72;
-	//float height = self.view.bounds.size.height - topMargin;
 	float height = self.preferredExpandedContentHeight - topMargin;
 	float width = self.view.bounds.size.width;
     
     self.expandedView.frame = CGRectMake(0, topMargin, width, height);
-	//self.expandedView.backgroundColor = UIColor.redColor;
-    DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
-    DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
+    //DebugLog(@"self.view.frame = %@", NSStringFromCGRect(self.view.frame));
+    //DebugLog(@"self.expandedView.frame = %@", NSStringFromCGRect(self.expandedView.frame));
     	
     float spaceBetweenRows = 20;
     float y = 5;
     
+	// labels
     self.wifiSSIDLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
     y += spaceBetweenRows;
     self.wifiIPLabel.frame = CGRectMake(0, y, self.expandedView.bounds.size.width, LABEL_HEIGHT);
 	
-	// toggles
+	// toggle container
 	self.togglesView.frame = CGRectMake(0, height - TOGGLE_SIZE - 10, (3 * TOGGLE_SIZE) + 50, TOGGLE_SIZE);
 	self.togglesView.center = CGPointMake(width / 2.0f, self.togglesView.center.y);
 	
-	// self.togglesView.frame = CGRectMake(0, height - TOGGLE_SIZE - 10, width, TOGGLE_SIZE);
-	
+	// toggles
 	self.respringToggle.frame = CGRectMake(0, 0, TOGGLE_SIZE, TOGGLE_SIZE);
 	self.rebootToggle.frame = CGRectMake(TOGGLE_SIZE + 25, 0, TOGGLE_SIZE, TOGGLE_SIZE);
 	self.restartUserspaceToggle.frame = CGRectMake(2 * TOGGLE_SIZE + 50, 0, TOGGLE_SIZE, TOGGLE_SIZE);
@@ -276,26 +263,26 @@ typedef struct {
     
     // bail if the meters are already running
     if ([self.meterUpdateTimer isValid]) {
-        DebugLog(@"meters are already running, no need to start them again!");
-        
-    } else {
-        // show placeholder values
-        for (Meter *meter in self.meters) {
-            meter.label.text = meter.title;
-        }
-        
-        // get new starting measurements
-        self.lastCPUSample = [self getCPUSample];
-        self.lastNetSample = [self getNetSample];
-        
-        // start timer
-        self.meterUpdateTimer = [NSTimer timerWithTimeInterval:UPDATE_INTERVAL target:self
-													  selector:@selector(updateMeters:)
-													  userInfo:nil
-													   repeats:YES];
-        [[NSRunLoop mainRunLoop] addTimer:self.meterUpdateTimer forMode:NSRunLoopCommonModes];
-        DebugLog(@"••••• started Timer ••••• (%@)", self.meterUpdateTimer);
+        DebugLog(@"meters are already running!");
+        return;
+	}
+	
+    // show placeholder values
+    for (Meter *meter in self.meters) {
+        meter.label.text = meter.title;
     }
+    
+    // get new starting measurements
+    self.lastCPUSample = [self getCPUSample];
+    self.lastNetSample = [self getNetSample];
+    
+    // start timer
+    self.meterUpdateTimer = [NSTimer timerWithTimeInterval:UPDATE_INTERVAL target:self
+												  selector:@selector(updateMeters:)
+												  userInfo:nil
+												   repeats:YES];
+    [[NSRunLoop mainRunLoop] addTimer:self.meterUpdateTimer forMode:NSRunLoopCommonModes];
+    DebugLog(@"••••• started Timer ••••• (%@)", self.meterUpdateTimer);
 }
 
 - (void)stopUpdating {
@@ -313,7 +300,6 @@ typedef struct {
 	//--------------------------------------------------------------------------
     unsigned long long bytesFree = [self diskFreeInBytesForPath:@"/"];
     //unsigned long long bytesFree = [self diskFreeInBytesForPath:NSHomeDirectory()];
-    //DebugLog(@"***** bytesFree = %llu", bytesFree);
     double gigsFree = (double)bytesFree / (1024*1024*1024);
     [self.diskMeter.label setText:[NSString stringWithFormat:@"%.1f GB", gigsFree]];
     
@@ -337,8 +323,6 @@ typedef struct {
     
     // calculate time spent in use as a percentage of the total time
     uint64_t total = cpu_delta.totalUserTime + cpu_delta.totalSystemTime + cpu_delta.totalIdleTime;
-    //		double idle = (double)(cpu_delta.totalIdleTime) / (double)total * 100.0; // in %
-    //		double used = 100.0 - idle;
     double used = ((cpu_delta.totalUserTime + cpu_delta.totalSystemTime) / (double)total) * 100.0;
     
     [self.cpuMeter.label setText:[NSString stringWithFormat:@"%.1f %%", used]];
@@ -355,7 +339,6 @@ typedef struct {
     // calculate period length
     net_delta.timestamp = (net_sample.timestamp - self.lastNetSample.timestamp);
     double interval = net_delta.timestamp / 1000.0 / 1000.0 / 1000.0; // ns-to-s
-    //DebugLog(@"Net Meters sample delta: %fs", interval);
     
     // get bytes transferred since last sample was taken
 	if (self.lastNetSample.totalUploadBytes < net_sample.totalUploadBytes) {
@@ -432,7 +415,7 @@ typedef struct {
     kr = host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (int *)&r_load, &count);
     
     if (kr != KERN_SUCCESS) {
-        //DebugLog(@"error fetching HOST_CPU_LOAD_INFO !!!");
+    	NSLog(@"error fetching HOST_CPU_LOAD_INFO !!!");
     } else {
         sample.totalUserTime = r_load.cpu_ticks[CPU_STATE_USER] + r_load.cpu_ticks[CPU_STATE_NICE];
         sample.totalSystemTime = r_load.cpu_ticks[CPU_STATE_SYSTEM];
@@ -501,13 +484,13 @@ typedef struct {
             sample.totalDownloadBytes = totalibytes;
             
         } else {
-            DebugLog(@"sysctl error !!!");
+            NSLog(@"sysctl error !!!");
         }
         
         free(buf);
         
     } else {
-        DebugLog(@"sysctl error !!!");
+        NSLog(@"sysctl error !!!");
     }
     
     //DebugLog(@"got Net sample [ up:%llu; down=%llu ]", sample.totalUploadBytes, sample.totalDownloadBytes);
@@ -550,7 +533,6 @@ typedef struct {
 }
 
 - (Meter *)meterForName:(NSString *)name {
-	//DebugLog(@"looking for meter (%@) in self.meters=%@", name, self.meters);
 	for (Meter *meter in self.meters) {
 		if ([meter.name isEqualToString:name]) {
 			return meter;
@@ -595,20 +577,16 @@ typedef struct {
 }
 
 - (void)respringToggleTapped {
-    // pid_t pid;
-    // int status;
+	NSLog(@"CCMeters: User requested a respring.");
+	
+	pid_t pid;
     // const char* args[] = {"sbreload", NULL};
     // posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char* const*)args, NULL);
-    // waitpid(pid, &status, WEXITED);
-	
-	NSLog(@"CCMeters: User requested a respring.");
-	pid_t pid;
 	const char* args[] = { "killall", "-HUP", "SpringBoard", NULL };
 	posix_spawn(&pid, "/usr/bin/killall", NULL, NULL, (char* const*)args, NULL);
 }
 
-- (void)rebootToggleTapped {
-	
+- (void)rebootToggleTapped {	
 	UIAlertController * alert = [UIAlertController
 		alertControllerWithTitle:@"Reboot?"
 		message:nil
@@ -661,17 +639,5 @@ typedef struct {
 
     [self presentViewController:alert animated:YES completion:nil];
 }
-
-//------------------------------------------------------------------------------
-
-
-- (void)dealloc {
-    DebugLog(@"dealloc()");
-    
-	// make SURE the timer is dead.
-	[_meterUpdateTimer invalidate];
-	_meterUpdateTimer = nil;
-}
-
 
 @end

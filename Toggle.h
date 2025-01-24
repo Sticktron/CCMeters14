@@ -2,7 +2,7 @@
 //  Toggle.h
 //  CCMeters14
 //
-//  Copyright © 2024 Sticktron. All rights reserved.
+//  Copyright © Sticktron. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>
